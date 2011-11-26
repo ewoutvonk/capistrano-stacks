@@ -1,0 +1,72 @@
+<% if appserver?(:passenger) %>
+<IfModule passenger_module> 
+    <VirtualHost *:80>
+
+        ServerName <%= domain %>
+        <%- Array(passenger_server_alii).each do |server_alias| -%>
+        ServerAlias <%= server_alias %>
+        <%- end -%>
+
+		<% if passenger_redirect_to_canonical_hostname || framework?(:rails3) %>
+        RewriteEngine On
+		<% end %>
+
+        <%- if passenger_redirect_to_canonical_hostname -%>
+        # Redirect to canonical hostname
+        RewriteCond %{HTTP_HOST}    !^<%= domain.gsub('.','\.') %> [NC]
+        RewriteCond %{HTTP_HOST}    !^$
+        RewriteRule ^/?(.*)         http://<%= domain %>/$1 [L,R=301,NE]
+        <%- end -%>
+
+		<% if framework?(:rails3) %>
+
+        DocumentRoot <%= File.join(current_path, 'public') %>
+        <Directory <%= File.join(current_path, 'public') %>>
+            Allow from all
+            Options -MultiViews
+        </Directory>
+
+		<% else %>
+
+        DocumentRoot <%= passenger_document_root %>
+        <Directory <%= passenger_document_root %>>
+            Allow from all
+            Options -MultiViews
+        </Directory>
+		
+		<% end %>
+
+        CustomLog <%= fetch(:apache_log_dir, '/var/log/apache2') %>/<%= application %>-access.log combined
+        ErrorLog <%= fetch(:apache_log_dir, '/var/log/apache2') %>/<%= application %>-error.log
+	  
+		<% if framework?(:rails3) %>
+
+        RackEnv <%= rack_env %>
+        RailsEnv <%= rack_env %>
+
+        # Check for maintenance file and redirect all requests
+        RewriteCond %{REQUEST_URI} !\.(css|jpg|png|gif)$
+        RewriteCond %{DOCUMENT_ROOT}/system/maintenance.html -f
+        RewriteCond %{SCRIPT_FILENAME} !maintenance.html
+        RewriteRule ^.*$ /system/maintenance.html [L]
+
+		# Enable caching of assets containing a fingerprint
+        # Browsers need never check for newer versions of an
+        # asset because the fingerprint would be different.
+        <FilesMatch "/assets/[^.]+-[a-z0-9]{32}\.">
+            # Add far-future expiration dates
+            <IfModule mod_expires.c>
+                ExpiresActive On
+                ExpiresDefault "access plus 10 years"
+            </IfModule>
+            # Disable ETags
+            <IfModule mod_expires.c>
+                Header unset "ETag"
+            </IfModule>
+        </FilesMatch>
+
+        <% end %>
+
+    </VirtualHost>
+</IfModule>
+<% end %>
