@@ -11,6 +11,38 @@ Capistrano::Configuration.instance(:must_exist).load do
     after 'deploy:setup', 'deploy:stacks:after_deploy_setup_handlers:create_database_and_grant_user'
 
     namespace :deploy do
+      
+      namespace :db do
+        
+        task :show_slave_status, :roles => :db do
+          run_mysql_command("SHOW SLAVE STATUS\\G")
+        end
+
+        task :show_master_status, :roles => :db do
+          run_mysql_command("SHOW MASTER STATUS;")
+        end
+
+        task :show_status, :roles => :db do
+          run_mysql_command("SHOW STATUS;")
+        end
+
+        task :show_variables, :roles => :db do
+          run_mysql_command("SHOW VARIABLES;")
+        end
+
+        task :show_global_variables, :roles => :db do
+          run_mysql_command("SHOW GLOBAL VARIABLES;")
+        end
+
+        task :start_slave, :roles => :db do
+          run_mysql_command("START SLAVE;")
+        end
+
+        task :stop_slave, :roles => :db do
+          run_mysql_command("STOP SLAVE;")
+        end
+        
+      end
     
       namespace :stacks do
         namespace :after_deploy_setup_handlers do
